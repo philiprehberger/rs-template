@@ -1,6 +1,6 @@
 [package]
 name = "philiprehberger-template"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 authors = ["Philip Rehberger"]
 description = "Lightweight string template engine with variables, conditionals, and loops"

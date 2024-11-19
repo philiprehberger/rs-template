@@ -10,7 +10,7 @@ Lightweight string template engine with variables, conditionals, and loops. Zero
 
 ```toml
 [dependencies]
-philiprehberger-template = "0.1"
+philiprehberger-template = "0.1.6"
 ```
 
 ## Usage

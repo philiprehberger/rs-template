@@ -1,10 +1,13 @@
 [package]
 name = "philiprehberger-template"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 authors = ["Philip Rehberger"]
 description = "Lightweight string template engine with variables, conditionals, and loops"
 license = "MIT"
 repository = "https://github.com/philiprehberger/rs-template"
+readme = "README.md"
+rust-version = "1.70"
+documentation = "https://docs.rs/philiprehberger-template"
 keywords = ["template", "render", "string", "placeholder", "mustache"]
 categories = ["template-engine", "text-processing"]

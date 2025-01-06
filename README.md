@@ -10,7 +10,7 @@ Lightweight string template engine with variables, conditionals, and loops. Zero
 
 ```toml
 [dependencies]
-philiprehberger-template = "0.1.6"
+philiprehberger-template = "0.1.7"
 ```
 
 ## Usage
@@ -91,6 +91,14 @@ assert_eq!(tpl.render(&data).unwrap(), "HELLO");
 | `{#each list}...{/each}` | Loop block (`{.}` for current item) |
 | `{name\|filter}` | Filters: `upper`, `lower`, `trim` |
 | `{{` | Escaped literal `{` |
+
+
+## Development
+
+```bash
+cargo test
+cargo clippy -- -D warnings
+```
 
 ## License
 

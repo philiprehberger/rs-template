@@ -4,7 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/philiprehberger-template.svg)](https://crates.io/crates/philiprehberger-template)
 [![License](https://img.shields.io/github/license/philiprehberger/rs-template)](LICENSE)
 
-Lightweight string template engine with variables, conditionals, and loops. Zero dependencies.
+Lightweight string template engine with variables, conditionals, and loops
 
 ## Installation
 

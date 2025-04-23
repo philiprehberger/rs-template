@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 (2026-03-21)
+
+- Add Value accessor methods: as_str(), as_f64(), as_bool(), as_list(), as_map()
+- Add Value type check methods: is_string(), is_number(), is_bool(), is_list(), is_map()
+- Add Default trait implementation for Value
+- Add {:else} support in {#if} conditional blocks
+- Add #[must_use] attributes on Template::parse() and Template::render()
+
 ## 0.1.7 (2026-03-17)
 
 - Add readme, rust-version, documentation to Cargo.toml

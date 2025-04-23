@@ -10,7 +10,7 @@ Lightweight string template engine with variables, conditionals, and loops
 
 ```toml
 [dependencies]
-philiprehberger-template = "0.1.7"
+philiprehberger-template = "0.2.0"
 ```
 
 ## Usage
@@ -65,6 +65,20 @@ data.insert("items".into(), Value::List(vec![
 assert_eq!(tpl.render(&data).unwrap(), "a, b, c, ");
 ```
 
+### Value accessors
+
+```rust
+use philiprehberger_template::Value;
+
+let val = Value::from("hello");
+assert_eq!(val.as_str(), Some("hello"));
+assert!(val.is_string());
+assert!(!val.is_number());
+
+let num = Value::from(42.0);
+assert_eq!(num.as_f64(), Some(42.0));
+```
+
 ### Filters
 
 ```rust
@@ -84,6 +98,12 @@ assert_eq!(tpl.render(&data).unwrap(), "HELLO");
 | `Template::parse(s)` | Parse a template string, returns `Result<Template, ParseError>` |
 | `template.render(&data)` | Render with data, returns `Result<String, RenderError>` |
 | `Value` | Enum: `String`, `Number`, `Bool`, `List`, `Map` |
+| `Value::as_str()` | Get &str if String |
+| `Value::as_f64()` | Get f64 if Number |
+| `Value::as_bool()` | Get bool if Bool |
+| `Value::as_list()` | Get &[Value] if List |
+| `Value::as_map()` | Get &HashMap if Map |
+| `Value::is_string()` etc. | Type check methods |
 | `{name}` | Variable placeholder |
 | `{user.email}` | Dot-notation nested access |
 | `{#if cond}...{/if}` | Conditional block |

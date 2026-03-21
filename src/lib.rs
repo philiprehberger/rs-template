@@ -89,6 +89,12 @@ impl From<Vec<Value>> for Value {
     }
 }
 
+impl Default for Value {
+    fn default() -> Self {
+        Value::String(String::new())
+    }
+}
+
 impl Value {
     /// Returns `true` if this value is truthy for conditional evaluation.
     ///
@@ -105,6 +111,81 @@ impl Value {
             Value::List(v) => !v.is_empty(),
             Value::Map(_) => true,
         }
+    }
+
+    /// Returns the inner `&str` if this is a `Value::String`, or `None` otherwise.
+    #[must_use]
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Returns the inner `f64` if this is a `Value::Number`, or `None` otherwise.
+    #[must_use]
+    pub fn as_f64(&self) -> Option<f64> {
+        match self {
+            Value::Number(n) => Some(*n),
+            _ => None,
+        }
+    }
+
+    /// Returns the inner `bool` if this is a `Value::Bool`, or `None` otherwise.
+    #[must_use]
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Value::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// Returns the inner slice if this is a `Value::List`, or `None` otherwise.
+    #[must_use]
+    pub fn as_list(&self) -> Option<&[Value]> {
+        match self {
+            Value::List(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Returns a reference to the inner map if this is a `Value::Map`, or `None` otherwise.
+    #[must_use]
+    pub fn as_map(&self) -> Option<&HashMap<String, Value>> {
+        match self {
+            Value::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if this value is a `String`.
+    #[must_use]
+    pub fn is_string(&self) -> bool {
+        matches!(self, Value::String(_))
+    }
+
+    /// Returns `true` if this value is a `Number`.
+    #[must_use]
+    pub fn is_number(&self) -> bool {
+        matches!(self, Value::Number(_))
+    }
+
+    /// Returns `true` if this value is a `Bool`.
+    #[must_use]
+    pub fn is_bool(&self) -> bool {
+        matches!(self, Value::Bool(_))
+    }
+
+    /// Returns `true` if this value is a `List`.
+    #[must_use]
+    pub fn is_list(&self) -> bool {
+        matches!(self, Value::List(_))
+    }
+
+    /// Returns `true` if this value is a `Map`.
+    #[must_use]
+    pub fn is_map(&self) -> bool {
+        matches!(self, Value::Map(_))
     }
 }
 
@@ -155,8 +236,8 @@ enum Node {
     Text(String),
     /// A variable reference with optional filter. `{name}` or `{name|upper}`.
     Variable { path: String, filter: Option<String> },
-    /// A conditional block. `{#if cond}...{/if}`.
-    Conditional { variable: String, negated: bool, body: Vec<Node> },
+    /// A conditional block. `{#if cond}...{/if}` with optional `{:else}`.
+    Conditional { variable: String, negated: bool, body: Vec<Node>, else_body: Vec<Node> },
     /// A loop block. `{#each list}...{/each}`.
     Loop { variable: String, body: Vec<Node> },
 }
@@ -184,6 +265,7 @@ impl Template {
     /// Parse a template string into a `Template`.
     ///
     /// Returns a `ParseError` if the template contains unmatched blocks or invalid syntax.
+    #[must_use = "parsing a template has no effect unless the result is used"]
     pub fn parse(template: &str) -> Result<Template, ParseError> {
         let tokens = tokenize(template)?;
         let (nodes, rest) = parse_tokens(&tokens, None)?;
@@ -198,6 +280,7 @@ impl Template {
     /// Render this template using the provided data map.
     ///
     /// Returns a `RenderError` if a required variable is missing or a type mismatch occurs.
+    #[must_use = "rendering a template has no effect unless the result is used"]
     pub fn render(&self, data: &HashMap<String, Value>) -> Result<String, RenderError> {
         let mut output = String::new();
         render_nodes(&self.nodes, data, None, &mut output)?;
@@ -210,6 +293,7 @@ impl Template {
 enum Token {
     Text(String),
     OpenIf(String, bool),    // variable, negated
+    Else,
     CloseIf,
     OpenEach(String),        // variable
     CloseEach,
@@ -277,6 +361,8 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
                 }
             } else if tag == "/if" {
                 tokens.push(Token::CloseIf);
+            } else if tag == ":else" {
+                tokens.push(Token::Else);
             } else if let Some(rest) = tag.strip_prefix("#each ") {
                 tokens.push(Token::OpenEach(rest.trim().to_string()));
             } else if tag == "/each" {
@@ -332,15 +418,33 @@ fn parse_tokens<'a>(
                 let negated = *negated;
                 remaining = &remaining[1..];
                 let (body, rest) = parse_tokens(remaining, Some("if"))?;
+                // Check if we stopped at {:else}
+                let (else_body, final_rest) = if !rest.is_empty() && matches!(&rest[0], Token::Else) {
+                    let after_else = &rest[1..];
+                    let (eb, r) = parse_tokens(after_else, Some("if_else_end"))?;
+                    (eb, r)
+                } else {
+                    (Vec::new(), rest)
+                };
                 nodes.push(Node::Conditional {
                     variable: var,
                     negated,
                     body,
+                    else_body,
                 });
-                remaining = rest;
+                remaining = final_rest;
+            }
+            Token::Else => {
+                if closing == Some("if") {
+                    // Return — the caller (OpenIf handler) will parse else body
+                    return Ok((nodes, remaining));
+                }
+                return Err(ParseError::UnmatchedBlock(
+                    "unexpected {:else} without matching {#if}".into(),
+                ));
             }
             Token::CloseIf => {
-                if closing == Some("if") {
+                if closing == Some("if") || closing == Some("if_else_end") {
                     return Ok((nodes, &remaining[1..]));
                 }
                 return Err(ParseError::UnmatchedBlock(
@@ -446,12 +550,14 @@ fn render_nodes(
                 };
                 output.push_str(&rendered);
             }
-            Node::Conditional { variable, negated, body } => {
+            Node::Conditional { variable, negated, body, else_body } => {
                 let val = resolve_path(variable, data, current_item);
                 let truthy = val.is_some_and(|v| v.is_truthy());
                 let should_render = if *negated { !truthy } else { truthy };
                 if should_render {
                     render_nodes(body, data, current_item, output)?;
+                } else if !else_body.is_empty() {
+                    render_nodes(else_body, data, current_item, output)?;
                 }
             }
             Node::Loop { variable, body } => {
